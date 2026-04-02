@@ -645,4 +645,161 @@
                 navItems[1].classList.add('active');
                 sectionTitle.innerText = "Мой плейлист";
                 const playlistSongs = ALL_MUSIC.filter(song => myPlaylist.includes(song.id));
-                renderSongs(pl
+                renderSongs(playlistSongs);
+                // Скрываем категории в плейлисте
+                categoriesContainer.style.display = 'none';
+            }
+        }
+
+        function filterByCategory(category) {
+            activeCategory = category;
+            categoriesContainer.style.display = 'flex'; // Возвращаем категории
+            renderCategories(); // Перерисовываем активную кнопку
+            
+            let filtered = ALL_MUSIC;
+            if (category !== "Все") {
+                filtered = ALL_MUSIC.filter(song => song.category === category);
+            }
+            renderSongs(filtered);
+        }
+
+        // Поиск (работает при вводе текста)
+        searchInput.addEventListener('input', (e) => {
+            if (currentTab === 'playlist') switchTab('home'); // Сбрасываем на главную при поиске
+            
+            const query = e.target.value.toLowerCase();
+            const searched = ALL_MUSIC.filter(song => 
+                song.title.toLowerCase().includes(query) || 
+                song.artist.toLowerCase().includes(query)
+            );
+            sectionTitle.innerText = query ? "Результаты поиска" : "Рекомендации";
+            renderSongs(searched);
+        });
+
+        /* ======= ЛОГИКА ПЛЕЙЛИСТА ======= */
+        
+        function togglePlaylist(event, songId) {
+            event.stopPropagation(); // Чтобы не запускалось воспроизведение при клике на сердечко
+            const index = myPlaylist.indexOf(songId);
+            const btn = event.currentTarget;
+            
+            if (index > -1) {
+                // Удаляем
+                myPlaylist.splice(index, 1);
+                btn.classList.remove('in-playlist');
+                if (currentTab === 'playlist') {
+                    // Перерисовываем, если мы находимся во вкладке плейлиста
+                    switchTab('playlist');
+                }
+            } else {
+                // Добавляем
+                myPlaylist.push(songId);
+                btn.classList.add('in-playlist');
+            }
+            // Сохраняем в localStorage
+            localStorage.setItem('vibeMusicPlaylist', JSON.stringify(myPlaylist));
+        }
+
+        /* ======= ЛОГИКА АУДИОПЛЕЕРА ======= */
+
+        function playTrack(index) {
+            if(index < 0 || index >= currentQueue.length) return;
+            
+            currentTrackIndex = index;
+            const song = currentQueue[index];
+            
+            audioPlayer.src = song.src;
+            audioPlayer.play();
+            
+            // Обновляем UI плеера
+            document.getElementById('playerCover').src = song.cover;
+            document.getElementById('playerCover').style.display = 'block';
+            document.getElementById('playerTitle').innerText = song.title;
+            document.getElementById('playerArtist').innerText = song.artist;
+            
+            updatePlayPauseIcon(true);
+        }
+
+        function togglePlay() {
+            if (currentTrackIndex === -1 && currentQueue.length > 0) {
+                playTrack(0);
+                return;
+            }
+
+            if (audioPlayer.paused) {
+                audioPlayer.play();
+                updatePlayPauseIcon(true);
+            } else {
+                audioPlayer.pause();
+                updatePlayPauseIcon(false);
+            }
+        }
+
+        function playNext() {
+            if(currentQueue.length === 0) return;
+            let nextIndex = currentTrackIndex + 1;
+            if (nextIndex >= currentQueue.length) nextIndex = 0; 
+            playTrack(nextIndex);
+        }
+
+        function playPrev() {
+            if(currentQueue.length === 0) return;
+            let prevIndex = currentTrackIndex - 1;
+            if (prevIndex < 0) prevIndex = currentQueue.length - 1; 
+            playTrack(prevIndex);
+        }
+
+        function updatePlayPauseIcon(isPlaying) {
+            if (isPlaying) {
+                playPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+            } else {
+                playPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+            }
+        }
+
+        function changeVolume(val) {
+            audioPlayer.volume = val;
+        }
+
+        /* ======= ПРОГРЕСС БАР И ВРЕМЯ ======= */
+
+        function formatTime(seconds) {
+            if (isNaN(seconds)) return "0:00";
+            const min = Math.floor(seconds / 60);
+            const sec = Math.floor(seconds % 60);
+            return `${min}:${sec < 10 ? '0' : ''}${sec}`;
+        }
+
+        audioPlayer.addEventListener('timeupdate', () => {
+            const current = audioPlayer.currentTime;
+            const duration = audioPlayer.duration;
+            
+            if (duration) {
+                const progressPercent = (current / duration) * 100;
+                progressBar.style.width = `${progressPercent}%`;
+                currentTimeEl.innerText = formatTime(current);
+            }
+        });
+
+        audioPlayer.addEventListener('loadedmetadata', () => {
+            totalTimeEl.innerText = formatTime(audioPlayer.duration);
+        });
+
+        audioPlayer.addEventListener('ended', playNext);
+
+        function seekTrack(e) {
+            const wrapper = document.getElementById('progressWrapper');
+            const width = wrapper.clientWidth;
+            const clickX = e.offsetX;
+            const duration = audioPlayer.duration;
+            
+            if (duration) {
+                audioPlayer.currentTime = (clickX / width) * duration;
+            }
+        }
+
+        // Запуск инициализации
+        init();
+    </script>
+</body>
+</html>
